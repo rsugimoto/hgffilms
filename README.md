@@ -1,17 +1,18 @@
 # HGF Film Simulation
 
-My implementation of ["A Hyperbolic Geometric Flow for Evolving Films and Foams" \[Sadashige Ishida et al. 2017\]](https://sadashigeishida.bitbucket.io/hgf/index.html)
+My implementation of ["A Hyperbolic Geometric Flow for Evolving Films and Foams" \[Sadashige Ishida et al. 2017\]](https://sadashigeishida.bitbucket.io/hgf/index.html).
+![]("screenshot.png")
 
 ## Current Status
-Under development...
+Implements only the core algorithms, and output the results on screen with wireframe rendering. You may want to change parameters directly in "src/simulator.cpp" to try different configurations.
 
 ## Dependencies
-- libigl
 - Eigen
-- OpenGL
-- glut
 - GLFW
+- glut
 - LAPACK
+- libigl
+- OpenGL
 
 ## Compile
     
@@ -22,9 +23,10 @@ Under development...
 
 ## Run
 
-From within the `build` directory just issue:
+    cd build
+    ./main [scene]
 
-    ./main
+where the optional argument [scene] can be 1 to 4.
 
 ## References
 - ["A Hyperbolic Geometric Flow for Evolving Films and Foams" \[Sadashige Ishida et al. 2017\]](https://sadashigeishida.bitbucket.io/hgf/index.html)

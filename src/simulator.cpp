@@ -34,11 +34,13 @@ Simulator::~Simulator(){
     delete m_st;
 }
 
-bool Simulator::init(){
+bool Simulator::init(int argc, char *argv[]){
     options["time-step"] = 0.01;
-    options["simulation-time"] = 10.0;
-    options["remeshing-resolution"] = 0.05;
+    // options["simulation-time"] = 30.0;
+    options["remeshing-resolution"] = 0.1;
     options["remeshing-iterations"] = 3;
+    options["surface-tension-strength"] = 0.1;
+    options["scene"] = 3;
 
     options["lostopos-collision-epsilon-fraction"] = 1e-4;       // lostopos collision epsilon (fraction of mean edge length)
     options["lostopos-merge-proximity-epsilon-fraction"] = 0.02; // lostopos merge proximity epsilon (fraction of mean edge length)
@@ -54,12 +56,19 @@ bool Simulator::init(){
     options["lostopos-allow-non-manifold"] = true;               // whether to allow non-manifold geometry in the mesh
     options["lostopos-allow-topology-changes"] = true;           // whether to allow topology changes
 
+    if(argc>1) options["scene"] = std::stoi(argv[1]);
+
     std::vector<Vec3d> vertices;
     std::vector<Vec3st> faces;
     std::vector<Vec2i> face_labels;
     std::vector<Vec3d> masses;
     size_t num_open_regions;
-    load_scene(vertices, faces, face_labels, masses, num_open_regions);
+    switch(std::any_cast<int>(options["scene"])){
+        case 4: load_scene4(vertices, faces, face_labels, masses, num_open_regions); break;
+        case 3: load_scene3(vertices, faces, face_labels, masses, num_open_regions); break;
+        case 2: load_scene2(vertices, faces, face_labels, masses, num_open_regions); break;
+        case 1: load_scene1(vertices, faces, face_labels, masses, num_open_regions); break;
+    }
 
     double mean_edge_len = std::any_cast<double>( options["remeshing-resolution"] );
     double min_edge_len = mean_edge_len * 0.5;
@@ -101,7 +110,7 @@ bool Simulator::init(){
     m_st = new SurfTrack(vertices, faces, face_labels, masses, params);
     if (m_bbwall) m_st->m_solid_vertices_callback = this;
 
-    m_driver = new HGFDriver(m_st, num_open_regions);
+    m_driver = new HGFDriver(m_st, num_open_regions, std::any_cast<double>(options["surface-tension-strength"]));
 
     // BB wall constraint: update the infinite masses
     updateBBWallConstraints();
@@ -110,6 +119,18 @@ bool Simulator::init(){
     m_time = 0;
     m_dt = std::any_cast<double>( options["time-step"] );
     m_finished = false;
+
+       // mesh improvement
+    for(int i = 0; i < std::any_cast<int>(options["remeshing-iterations"] ); i++)
+    {
+        m_st->topology_changes();
+        m_st->improve_mesh();
+    }
+    m_driver->update_velocities_after_mesh_improvement();
+    
+    // defrag the mesh in the end, to ensure the next step starts with a clean mesh
+    m_st->defrag_mesh();
+    m_driver->update_velocities_after_mesh_defrag();
 
     return true;
 }
@@ -158,11 +179,169 @@ void Simulator::step() {
     // advance time
     m_frameid++;
     m_time += m_dt;
-    if (m_time >= std::any_cast<double>( options["simulation-time"] ))
-        m_finished = true;
+    // if (m_time >= std::any_cast<double>( options["simulation-time"] )){
+    //     m_finished = true;
+    //     std::cout<<"simulation finished"<<std::endl;
+    // }
 }
 
-void Simulator::load_scene(std::vector<Vec3d> & vs, std::vector<Vec3st> & fs, std::vector<Vec2i> & ls, std::vector<Vec3d> & ms, size_t& num_open_regions) {
+void Simulator::load_scene4(std::vector<Vec3d> & vs, std::vector<Vec3st> & fs, std::vector<Vec2i> & ls, std::vector<Vec3d> & ms, size_t& num_open_regions) {
+    vs.clear(); vs.reserve(16);
+    fs.clear(); fs.reserve(32);
+    ls.clear(); ls.reserve(32);
+    ms.clear(); ms.resize(16, Vec3d(1, 1, 1));
+    num_open_regions = 1;
+    vs.push_back(Vec3d(0.0, 0.0, 0.0));
+    vs.push_back(Vec3d(0.0, 0.0, 1.0));
+    vs.push_back(Vec3d(0.0, 1.0, 0.0));
+    vs.push_back(Vec3d(0.0, 1.0, 1.0));
+    vs.push_back(Vec3d(1.0, 0.0, 0.0));
+    vs.push_back(Vec3d(1.0, 0.0, 1.0));
+    vs.push_back(Vec3d(1.0, 1.0, 0.0));
+    vs.push_back(Vec3d(1.0, 1.0, 1.0));
+    vs.push_back(Vec3d(2.0, 0.0, 0.0));
+    vs.push_back(Vec3d(2.0, 0.0, 1.0));
+    vs.push_back(Vec3d(2.0, 1.0, 0.0));
+    vs.push_back(Vec3d(2.0, 1.0, 1.0));
+    vs.push_back(Vec3d(1.0, 2.0, 0.0));
+    vs.push_back(Vec3d(1.0, 2.0, 1.0));
+    vs.push_back(Vec3d(2.0, 2.0, 0.0));
+    vs.push_back(Vec3d(2.0, 2.0, 1.0));
+
+    fs.push_back(Vec3st(0, 1, 2));
+    fs.push_back(Vec3st(2, 1, 3));
+    fs.push_back(Vec3st(4, 0, 6));
+    fs.push_back(Vec3st(6, 0, 2));
+    fs.push_back(Vec3st(1, 5, 3));
+    fs.push_back(Vec3st(3, 5, 7));
+    fs.push_back(Vec3st(6, 2, 7));
+    fs.push_back(Vec3st(7, 2, 3));
+    fs.push_back(Vec3st(5, 1, 4));
+    fs.push_back(Vec3st(4, 1, 0));
+
+    fs.push_back(Vec3st(5, 4, 7));
+    fs.push_back(Vec3st(7, 4, 6));
+
+    fs.push_back(Vec3st(8, 4, 10));
+    fs.push_back(Vec3st(10, 4, 6));
+    fs.push_back(Vec3st(5, 9, 7));
+    fs.push_back(Vec3st(7, 9, 11));
+    fs.push_back(Vec3st(9, 5, 8));
+    fs.push_back(Vec3st(8, 5, 4));
+    fs.push_back(Vec3st(9, 8, 11));
+    fs.push_back(Vec3st(11, 8, 10));
+
+    fs.push_back(Vec3st(10, 6, 11));
+    fs.push_back(Vec3st(11, 6, 7));
+
+    fs.push_back(Vec3st(6, 7, 12));
+    fs.push_back(Vec3st(12, 7, 13));
+    fs.push_back(Vec3st(10, 6, 14));
+    fs.push_back(Vec3st(14, 6, 12));
+    fs.push_back(Vec3st(7, 11, 13));
+    fs.push_back(Vec3st(13, 11, 15));
+    fs.push_back(Vec3st(14, 12, 15));
+    fs.push_back(Vec3st(15, 12, 13));
+    fs.push_back(Vec3st(11, 10, 15));
+    fs.push_back(Vec3st(15, 10, 14));
+
+    for(size_t i = 0; i<10; ++i)ls.push_back(Vec2i(0, 3));
+    for(size_t i = 10; i<12; ++i)ls.push_back(Vec2i(2, 3));
+    for(size_t i = 12; i<20; ++i)ls.push_back(Vec2i(0, 2));
+    for(size_t i = 20; i<22; ++i)ls.push_back(Vec2i(1, 2));
+    for(size_t i = 22; i<32; ++i)ls.push_back(Vec2i(0, 1));
+}
+
+void Simulator::load_scene3(std::vector<Vec3d> & vs, std::vector<Vec3st> & fs, std::vector<Vec2i> & ls, std::vector<Vec3d> & ms, size_t& num_open_regions) {
+    vs.clear(); vs.reserve(9);
+    fs.clear(); fs.reserve(16);
+    ls.clear(); ls.reserve(16);
+    ms.clear(); ms.resize(9, Vec3d(1, 1, 1));
+    num_open_regions = 1;
+    vs.push_back(Vec3d(0.0, 0.0, 0.0));
+    vs.push_back(Vec3d(0.0, 0.0, 1.0));
+    vs.push_back(Vec3d(0.0, 1.0, 0.0));
+    vs.push_back(Vec3d(0.0, 1.0, 1.0));
+    vs.push_back(Vec3d(0.5, 0.0, 0.0));
+    vs.push_back(Vec3d(0.5, 0.0, 1.0));
+    vs.push_back(Vec3d(0.5, 1.0, 0.0));
+    vs.push_back(Vec3d(0.5, 1.0, 1.0));
+    vs.push_back(Vec3d(1.0, 0.5, 0.5));
+
+    fs.push_back(Vec3st(0, 1, 2));
+    fs.push_back(Vec3st(2, 1, 3));
+    fs.push_back(Vec3st(4, 0, 6));
+    fs.push_back(Vec3st(6, 0, 2));
+    fs.push_back(Vec3st(1, 5, 3));
+    fs.push_back(Vec3st(3, 5, 7));
+    fs.push_back(Vec3st(6, 2, 7));
+    fs.push_back(Vec3st(7, 2, 3));
+    fs.push_back(Vec3st(5, 1, 4));
+    fs.push_back(Vec3st(4, 1, 0));
+
+    fs.push_back(Vec3st(5, 7, 4));
+    fs.push_back(Vec3st(7, 6, 4));
+
+    fs.push_back(Vec3st(8, 4, 6));
+    fs.push_back(Vec3st(5, 8, 7));
+    fs.push_back(Vec3st(8, 6, 7));
+    fs.push_back(Vec3st(8, 5, 4));
+
+    for(size_t i = 0; i<10; ++i)ls.push_back(Vec2i(0, 2));
+    for(size_t i = 10; i<12; ++i)ls.push_back(Vec2i(2, 1));
+    for(size_t i = 12; i<16; ++i)ls.push_back(Vec2i(0, 1));
+}
+
+void Simulator::load_scene2(std::vector<Vec3d> & vs, std::vector<Vec3st> & fs, std::vector<Vec2i> & ls, std::vector<Vec3d> & ms, size_t& num_open_regions) {
+    vs.clear(); vs.reserve(12);
+    fs.clear(); fs.reserve(22);
+    ls.clear(); ls.reserve(22);
+    ms.clear(); ms.resize(12, Vec3d(1, 1, 1));
+    num_open_regions = 1;
+    vs.push_back(Vec3d(-1.0, -0.5, -0.5));
+    vs.push_back(Vec3d(-1.0, -0.5, 0.5));
+    vs.push_back(Vec3d(-1.0, 0.5, -0.5));
+    vs.push_back(Vec3d(-1.0, 0.5, 0.5));
+    vs.push_back(Vec3d(0.0, -0.5, -0.5));
+    vs.push_back(Vec3d(0.0, -0.5, 0.5));
+    vs.push_back(Vec3d(0.0, 0.5, -0.5));
+    vs.push_back(Vec3d(0.0, 0.5, 0.5));
+    vs.push_back(Vec3d(1.0, -0.5, -0.5));
+    vs.push_back(Vec3d(1.0, -0.5, 0.5));
+    vs.push_back(Vec3d(1.0, 0.5, -0.5));
+    vs.push_back(Vec3d(1.0, 0.5, 0.5));
+
+    fs.push_back(Vec3st(0, 1, 2));
+    fs.push_back(Vec3st(2, 1, 3));
+    fs.push_back(Vec3st(4, 0, 6));
+    fs.push_back(Vec3st(6, 0, 2));
+    fs.push_back(Vec3st(1, 5, 3));
+    fs.push_back(Vec3st(3, 5, 7));
+    fs.push_back(Vec3st(6, 2, 7));
+    fs.push_back(Vec3st(7, 2, 3));
+    fs.push_back(Vec3st(5, 1, 4));
+    fs.push_back(Vec3st(4, 1, 0));
+
+    fs.push_back(Vec3st(5, 4, 7));
+    fs.push_back(Vec3st(7, 4, 6));
+
+    fs.push_back(Vec3st(8, 4, 10));
+    fs.push_back(Vec3st(10, 4, 6));
+    fs.push_back(Vec3st(5, 9, 7));
+    fs.push_back(Vec3st(7, 9, 11));
+    fs.push_back(Vec3st(10, 6, 11));
+    fs.push_back(Vec3st(11, 6, 7));
+    fs.push_back(Vec3st(9, 5, 8));
+    fs.push_back(Vec3st(8, 5, 4));
+    fs.push_back(Vec3st(9, 8, 11));
+    fs.push_back(Vec3st(11, 8, 10));
+
+    for(size_t i = 0; i<10; ++i)ls.push_back(Vec2i(0, 2));
+    for(size_t i = 10; i<12; ++i)ls.push_back(Vec2i(1, 2));
+    for(size_t i = 12; i<22; ++i)ls.push_back(Vec2i(0, 1));
+}
+
+void Simulator::load_scene1(std::vector<Vec3d> & vs, std::vector<Vec3st> & fs, std::vector<Vec2i> & ls, std::vector<Vec3d> & ms, size_t& num_open_regions) {
     vs.clear(); vs.reserve(8);
     ms.clear(); ms.reserve(8);
     fs.clear(); fs.reserve(12);
@@ -177,20 +356,20 @@ void Simulator::load_scene(std::vector<Vec3d> & vs, std::vector<Vec3st> & fs, st
     vs.push_back(Vec3d(1.0, 1.0, 0.0));
     vs.push_back(Vec3d(1.0, 1.0, 1.0));
     for(size_t i = 0; i<8; ++i){
-        ms.push_back(Vec3d(1.0, 1.0, 1.0));
+        ms.push_back(Vec3d(0.01, 0.01, 0.01));
     }
-    fs.push_back(Vec3st(2, 1, 0));
-    fs.push_back(Vec3st(3, 1, 2));
-    fs.push_back(Vec3st(6, 0, 4));
-    fs.push_back(Vec3st(2, 0, 6));
-    fs.push_back(Vec3st(7, 4, 5));
-    fs.push_back(Vec3st(6, 4, 7));
-    fs.push_back(Vec3st(3, 5, 1));
-    fs.push_back(Vec3st(7, 5, 3));
-    fs.push_back(Vec3st(7, 2, 6));
-    fs.push_back(Vec3st(3, 2, 7));
-    fs.push_back(Vec3st(4, 1, 5));
-    fs.push_back(Vec3st(0, 1, 4));
+    fs.push_back(Vec3st(0, 1, 2));
+    fs.push_back(Vec3st(2, 1, 3));
+    fs.push_back(Vec3st(4, 0, 6));
+    fs.push_back(Vec3st(6, 0, 2));
+    fs.push_back(Vec3st(5, 4, 7));
+    fs.push_back(Vec3st(7, 4, 6));
+    fs.push_back(Vec3st(1, 5, 3));
+    fs.push_back(Vec3st(3, 5, 7));
+    fs.push_back(Vec3st(6, 2, 7));
+    fs.push_back(Vec3st(7, 2, 3));
+    fs.push_back(Vec3st(5, 1, 4));
+    fs.push_back(Vec3st(4, 1, 0));
     for(size_t i = 0; i<12; ++i){
         ls.push_back(Vec2i(0, 1));
     }

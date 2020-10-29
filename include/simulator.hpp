@@ -18,12 +18,15 @@ class Simulator : public LosTopos::SurfTrack::SolidVerticesCallback, LosTopos::T
     public:
         Simulator();
         ~Simulator();
-        bool init();
+        bool init(int argc, char *argv[]);
         void step();
         bool isFinished() const { return m_finished; }
 
     protected:
-        void load_scene(std::vector<LosTopos::Vec3d> & vs, std::vector<LosTopos::Vec3st> & fs, std::vector<LosTopos::Vec2i> & ls, std::vector<LosTopos::Vec3d> & ms, size_t& num_open_regions);
+        void load_scene1(std::vector<LosTopos::Vec3d> & vs, std::vector<LosTopos::Vec3st> & fs, std::vector<LosTopos::Vec2i> & ls, std::vector<LosTopos::Vec3d> & ms, size_t& num_open_regions);
+        void load_scene2(std::vector<LosTopos::Vec3d> & vs, std::vector<LosTopos::Vec3st> & fs, std::vector<LosTopos::Vec2i> & ls, std::vector<LosTopos::Vec3d> & ms, size_t& num_open_regions);
+        void load_scene3(std::vector<LosTopos::Vec3d> & vs, std::vector<LosTopos::Vec3st> & fs, std::vector<LosTopos::Vec2i> & ls, std::vector<LosTopos::Vec3d> & ms, size_t& num_open_regions);
+        void load_scene4(std::vector<LosTopos::Vec3d> & vs, std::vector<LosTopos::Vec3st> & fs, std::vector<LosTopos::Vec2i> & ls, std::vector<LosTopos::Vec3d> & ms, size_t& num_open_regions);
         void stepHGF(double dt);
 
     protected:

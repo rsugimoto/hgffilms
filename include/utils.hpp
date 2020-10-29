@@ -83,18 +83,20 @@ inline std::map<int, double> get_volumes_by_region(const LosTopos::SurfTrack* co
     {
         if ( tris[t][0] == tris[t][1] ) { continue; }
         const LosTopos::Vec3st& tri = tris[t];
-        const LosTopos::Vec2i& lbl = labels[t]; 
+        const LosTopos::Vec2i& lbl = labels[t];
+        const int lbl0 = lbl[0];
+        const int lbl1 = lbl[1];
         
-        if(volumes.find(lbl[0])==volumes.end()) volumes[lbl[0]]=0.0;
-        if(volumes.find(lbl[1])==volumes.end()) volumes[lbl[1]]=0.0;
+        if(volumes.find(lbl0)==volumes.end()) volumes[lbl0]=0.0;
+        if(volumes.find(lbl1)==volumes.end()) volumes[lbl1]=0.0;
 
         double local_volume = inv_six * triple(st->get_position(tri[0]), st->get_position(tri[1]), st->get_position(tri[2]));
-        volumes[lbl[0]] += local_volume;
-        volumes[lbl[1]] += local_volume;
+        volumes[lbl0] += local_volume;
+        volumes[lbl1] -= local_volume;
     }
-    // for(auto& [key, value] : volumes) {
-    //     value = abs(value);
-    // }
+    for(auto& [key, value] : volumes) {
+        value = abs(value);
+    }
     return volumes;
 }
 
@@ -108,14 +110,18 @@ inline std::map<int, double> get_predicted_volumes_by_region(const LosTopos::Sur
     {
         if ( tris[t][0] == tris[t][1] ) { continue; }
         const LosTopos::Vec3st& tri = tris[t];
-        const LosTopos::Vec2i& lbl = labels[t]; 
+        const LosTopos::Vec2i& lbl = labels[t];
+        const int lbl0 = lbl[0];
+        const int lbl1 = lbl[1];
         
-        if(volumes.find(lbl[0])==volumes.end()) volumes[lbl[0]]=0.0;
-        if(volumes.find(lbl[1])==volumes.end()) volumes[lbl[1]]=0.0;
-
+        if(volumes.find(lbl0)==volumes.end()) volumes[lbl0]=0.0;
+        if(volumes.find(lbl1)==volumes.end()) volumes[lbl1]=0.0;
         double local_volume = inv_six * triple(st->get_newposition(tri[0]), st->get_newposition(tri[1]), st->get_newposition(tri[2]));
-        volumes[lbl[0]] += local_volume;
-        volumes[lbl[1]] += local_volume;
+        volumes[lbl0] += local_volume;
+        volumes[lbl1] -= local_volume;
+    }
+    for(auto& [key, value] : volumes) {
+        value = abs(value);
     }
     return volumes;
 }
