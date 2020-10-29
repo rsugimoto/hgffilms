@@ -1,7 +1,7 @@
 # HGF Film Simulation
 
 My implementation of ["A Hyperbolic Geometric Flow for Evolving Films and Foams" \[Sadashige Ishida et al. 2017\]](https://sadashigeishida.bitbucket.io/hgf/index.html).
-![]("screenshot.png")
+![](screenshot.png)
 
 ## Current Status
 Implements only the core algorithms, and output the results on screen with wireframe rendering. You may want to change parameters directly in "src/simulator.cpp" to try different configurations.
